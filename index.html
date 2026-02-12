@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskMaster | Gestión Profesional</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background-color: var(--bg); 
+            color: var(--text);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            perspective: 1000px;
+        }
+
+        .card { 
+            background: white; 
+            padding: 32px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h2 { margin-top: 0; font-size: 1.5rem; text-align: center; color: var(--primary); }
+
+        .form-group { margin-bottom: 16px; }
+        
+        label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
+
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input:focus { outline: none; border-color: var(--primary); ring: 2px var(--primary); }
+
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600;
+            cursor: pointer; 
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover { background: var(--primary-hover); }
+        button:active { transform: scale(0.98); }
+
+        .btn-outline { background: transparent; color: #64748b; border: 1px solid #cbd5e1; margin-top: 12px; }
+        .btn-outline:hover { background: #f1f5f9; }
+
+        .hidden { display: none; }
+
+        /* Estilos de la Lista de Tareas */
+        #task-list { list-style: none; padding: 0; margin-top: 24px; }
+        
+        li { 
+            background: #fff; 
+            margin-bottom: 10px; 
+            padding: 14px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-radius: 10px; 
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .task-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+        
+        .task-text { cursor: pointer; transition: color 0.2s; }
+        .completed { text-decoration: line-through; color: #94a3b8; }
+
+        .actions { display: flex; gap: 8px; }
+
+        .btn-icon { 
+            width: 32px; height: 32px; padding: 0; 
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px;
+        }
+
+        .btn-delete { background: #fee2e2; color: var(--danger); }
+        .btn-delete:hover { background: var(--danger); color: white; }
+
+        .status-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: #dcfce7; color: var(--success); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="auth-section" class="card">
+            <h2 id="auth-title">Bienvenido de nuevo</h2>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="username" placeholder="Tu nombre de usuario">
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="password" placeholder="••••••••">
+            </div>
+            <button onclick="handleAuth()" id="auth-btn">Iniciar Sesión</button>
+            <p style="text-align:center; font-size: 0.85rem; margin-top: 20px; color: #64748b;">
+                <span id="toggle-text">¿No tienes cuenta?</span> 
+                <a href="#" onclick="toggleAuth()" style="color: var(--primary); text-decoration: none; font-weight: 600;">Haz clic aquí</a>
+            </p>
+        </div>
+
+        <div id="task-section" class="card hidden">
+            <h2>📝 Mis Tareas</h2>
+            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                <input type="text" id="task-title" placeholder="¿Qué hay que hacer hoy?" style="margin: 0;">
+                <button onclick="createTask()" style="width: auto; padding: 0 20px;">Añadir</button>
+            </div>
+            
+            <ul id="task-list"></ul>
+            
+            <button onclick="logout()" class="btn-outline">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let isLogin = true;
+
+        function toggleAuth() {
+            isLogin = !isLogin;
+            document.getElementById('auth-title').innerText = isLogin ? 'Bienvenido de nuevo' : 'Crear cuenta nueva';
+            document.getElementById('auth-btn').innerText = isLogin ? 'Iniciar Sesión' : 'Registrarse';
+            document.getElementById('toggle-text').innerText = isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?';
+        }
+
+        async function handleAuth() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const endpoint = isLogin ? '/auth/login' : '/auth/register';
+
+            try {
+                const resp = await fetch(API_URL + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await resp.json();
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                    showTasks();
+                } else if (!isLogin && resp.ok) {
+                    alert("✅ Cuenta creada con éxito. Ahora puedes iniciar sesión.");
+                    toggleAuth();
+                } else {
+                    alert("❌ " + (data.error || "Error de credenciales"));
+                }
+            } catch (e) {
+                alert("Servidor no disponible. ¿Olvidaste encender el backend?");
+            }
+        }
+
+        function showTasks() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('task-section').classList.remove('hidden');
+            loadTasks();
+        }
+
+        async function loadTasks() {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(API_URL + '/tareas', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const tasks = await resp.json();
+            const list = document.getElementById('task-list');
+            list.innerHTML = '';
+            
+            tasks.forEach(t => {
+                list.innerHTML += `
+                    <li>
+                        <div class="task-info">
+                            <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTask(${t.id}, ${t.completed})">
+                            <span class="task-text ${t.completed ? 'completed' : ''}">${t.title}</span>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-icon btn-delete" onclick="deleteTask(${t.id})" title="Eliminar">✕</button>
+                        </div>
+                    </li>`;
+            });
+        }
+
+        async function createTask() {
+            const input = document.getElementById('task-title');
+            if (!input.value) return;
+            const token = localStorage.getItem('token');
+            await fetch(API_URL + '/tareas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ title: input.value, completed: false })
+            });
+            input.value = '';
+            loadTasks();
+        }
+
+        async function toggleTask(id, currentStatus) {
+            const token = localStorage.getItem('token');
+            await fetch(`${API_URL}/tareas/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ completed: !currentStatus })
+            });
+            loadTasks();
+        }
+
+        async function deleteTask(id) {
+            if(!confirm("¿Seguro que quieres eliminar esta tarea?")) return;
+            const token = localStorage.getItem('token');
+            await fetch(`${API_URL}/tareas/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadTasks();
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            location.reload();
+        }
+
+        if(localStorage.getItem('token')) showTasks();
+    </script>
+</body>
+</html>
